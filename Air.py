@@ -10,12 +10,10 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-from theme import apply_theme, render_brand  # noqa: E402
+
 
 # Shared chrome: rendered on every run, but identical each time, so Streamlit
 # keeps it mounted instead of redrawing it when you switch pages.
-apply_theme()
-render_brand()
 
 # Paths are resolved from this file's folder, so it works from any launch dir.
 PAGES_DIR = Path(__file__).resolve().parent / "pages"

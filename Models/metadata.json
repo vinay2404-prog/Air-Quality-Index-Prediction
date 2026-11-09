@@ -1,0 +1,314 @@
+{
+  "format_version": 1,
+  "trained_at": "2026-11-08T18:31:06+00:00",
+  "sklearn_version": "1.9.1",
+  "pandas_version": "2.3.3",
+  "numpy_version": "2.5.4",
+  "data_file": "city_day.csv",
+  "data_sha256": "9f6e54dd3fc3ed89717db9557456a9d56db4abcc60ce98eb375f14b06e833efa",
+  "training_rows": 18598,
+  "test_rows": 6200,
+  "excluded_empty_targets": 2612,
+  "excluded_featureless_targets": 52,
+  "feature_columns": [
+    "City",
+    "PM2.5",
+    "PM10",
+    "NO",
+    "NO2",
+    "NOx",
+    "NH3",
+    "CO",
+    "SO2",
+    "O3",
+    "Benzene",
+    "Toluene",
+    "Xylene"
+  ],
+  "preprocessing": {
+    "numeric_imputation": "global_median",
+    "missing_indicators": true
+  },
+  "cities": [
+    "Ahmedabad",
+    "Aizawl",
+    "Amaravati",
+    "Amritsar",
+    "Bengaluru",
+    "Bhopal",
+    "Brajrajnagar",
+    "Chandigarh",
+    "Chennai",
+    "Coimbatore",
+    "Delhi",
+    "Ernakulam",
+    "Gurugram",
+    "Guwahati",
+    "Hyderabad",
+    "Jaipur",
+    "Jorapokhar",
+    "Kochi",
+    "Kolkata",
+    "Lucknow",
+    "Mumbai",
+    "Patna",
+    "Shillong",
+    "Talcher",
+    "Thiruvananthapuram",
+    "Visakhapatnam"
+  ],
+  "input_ranges": {
+    "PM2.5": {
+      "min": 0.04,
+      "max": 914.94,
+      "median": 48.785
+    },
+    "PM10": {
+      "min": 0.03,
+      "max": 917.08,
+      "median": 96.72
+    },
+    "NO": {
+      "min": 0.03,
+      "max": 390.68,
+      "median": 9.91
+    },
+    "NO2": {
+      "min": 0.01,
+      "max": 362.21,
+      "median": 22.1
+    },
+    "NOx": {
+      "min": 0.0,
+      "max": 293.1,
+      "median": 31.56
+    },
+    "NH3": {
+      "min": 0.01,
+      "max": 352.89,
+      "median": 16.31
+    },
+    "CO": {
+      "min": 0.01,
+      "max": 48.07,
+      "median": 0.92
+    },
+    "SO2": {
+      "min": 0.01,
+      "max": 186.08,
+      "median": 9.22
+    },
+    "O3": {
+      "min": 0.01,
+      "max": 257.73,
+      "median": 31.25
+    },
+    "Benzene": {
+      "min": 0.01,
+      "max": 455.03,
+      "median": 1.59
+    },
+    "Toluene": {
+      "min": 0.01,
+      "max": 454.85,
+      "median": 4.2
+    },
+    "Xylene": {
+      "min": 0.01,
+      "max": 170.37,
+      "median": 1.52
+    }
+  },
+  "target_stats": {
+    "min": 13.0,
+    "max": 500.0,
+    "mean": 161.02588918461166,
+    "median": 118.0,
+    "std": 113.23027485583829,
+    "p90": 341.0,
+    "p95": 407.0,
+    "p99": 500.0
+  },
+  "metrics": [
+    {
+      "model": "Random Forest",
+      "r2": 0.9298778391275309,
+      "mae": 18.0065231523293,
+      "rmse": 29.21626602470642,
+      "medae": 10.705690927128433,
+      "fit_seconds": 100.29316160000008
+    },
+    {
+      "model": "Gradient Boosting",
+      "r2": 0.9308471931497901,
+      "mae": 18.20931983989596,
+      "rmse": 29.01362350342002,
+      "medae": 11.094756205055504,
+      "fit_seconds": 26.99345919999996
+    },
+    {
+      "model": "Polynomial Regression",
+      "r2": 0.9044493728065152,
+      "mae": 22.21105026994945,
+      "rmse": 34.104668769816335,
+      "medae": 14.535602434175637,
+      "fit_seconds": 38.34899529999984
+    },
+    {
+      "model": "Multiple Regression",
+      "r2": 0.8163291707507929,
+      "mae": 30.517586117994504,
+      "rmse": 47.284321142630304,
+      "medae": 19.296645028191307,
+      "fit_seconds": 0.26888000000008105
+    },
+    {
+      "model": "Decision Tree",
+      "r2": 0.8692374734978078,
+      "mae": 24.432956989247312,
+      "rmse": 39.896859970226615,
+      "medae": 14.0,
+      "fit_seconds": 1.3051402999999482
+    },
+    {
+      "model": "SVR",
+      "r2": 0.8852410964942019,
+      "mae": 27.829097111839612,
+      "rmse": 37.3757795805752,
+      "medae": 22.480831562977293,
+      "fit_seconds": 28.99288400000023
+    }
+  ],
+  "temporal_metrics": [
+    {
+      "model": "Random Forest",
+      "r2": 0.8989264207024973,
+      "mae": 17.2925180354638,
+      "rmse": 29.17986361817133,
+      "medae": 10.672462301587316,
+      "fit_seconds": 44.666759000000184,
+      "p05": -35.7728944444445,
+      "p10": -25.54977619047612,
+      "p90": 21.549503968253973,
+      "p95": 39.60085158730159
+    },
+    {
+      "model": "Gradient Boosting",
+      "r2": 0.9118046581011345,
+      "mae": 17.207134011651057,
+      "rmse": 27.257577718368605,
+      "medae": 11.461241910538405,
+      "fit_seconds": 16.268584499999633,
+      "p05": -36.105884378860964,
+      "p10": -25.401053116333625,
+      "p90": 22.647000353586627,
+      "p95": 39.20007218195076
+    },
+    {
+      "model": "Polynomial Regression",
+      "r2": -1.0119001516637098,
+      "mae": 55.49778748983846,
+      "rmse": 130.18700819002743,
+      "medae": 21.57208643675628,
+      "fit_seconds": 7.154239399999824,
+      "p05": -150.0401351051412,
+      "p10": -69.56734489059859,
+      "p90": 57.300412293408826,
+      "p95": 106.68070938173418
+    },
+    {
+      "model": "Multiple Regression",
+      "r2": 0.14712672062042076,
+      "mae": 52.40539442685678,
+      "rmse": 84.76307217921673,
+      "medae": 21.847773572203465,
+      "fit_seconds": 0.1731987000002846,
+      "p05": -204.67540409550384,
+      "p10": -185.9002905486069,
+      "p90": 26.890528231220973,
+      "p95": 49.728508552560406
+    },
+    {
+      "model": "Decision Tree",
+      "r2": 0.7721420829753948,
+      "mae": 25.19779079702185,
+      "rmse": 43.81234475523659,
+      "medae": 15.0,
+      "fit_seconds": 0.7316298000000643,
+      "p05": -56.0,
+      "p10": -39.0,
+      "p90": 32.0,
+      "p95": 55.0
+    },
+    {
+      "model": "SVR",
+      "r2": 0.7015275199703845,
+      "mae": 36.363856079736706,
+      "rmse": 50.14372373412802,
+      "medae": 28.128656208152478,
+      "fit_seconds": 34.42667410000013,
+      "p05": -90.24434972930865,
+      "p10": -65.25228042657253,
+      "p90": 28.24854838760426,
+      "p95": 46.65002363617611
+    }
+  ],
+  "temporal_split": {
+    "cutoff": "2019-07-01",
+    "training_rows": 16605,
+    "test_rows": 8193,
+    "training_start": "2015-01-01",
+    "training_end": "2019-06-30",
+    "test_start": "2019-07-01",
+    "test_end": "2020-07-01"
+  },
+  "best_model": "Gradient Boosting",
+  "best_model_random_split": "Gradient Boosting",
+  "best_model_temporal_split": "Gradient Boosting",
+  "error_quantiles": {
+    "Random Forest": {
+      "p05": -35.7728944444445,
+      "p10": -25.54977619047612,
+      "p90": 21.549503968253973,
+      "p95": 39.60085158730159
+    },
+    "Gradient Boosting": {
+      "p05": -36.105884378860964,
+      "p10": -25.401053116333625,
+      "p90": 22.647000353586627,
+      "p95": 39.20007218195076
+    },
+    "Polynomial Regression": {
+      "p05": -150.0401351051412,
+      "p10": -69.56734489059859,
+      "p90": 57.300412293408826,
+      "p95": 106.68070938173418
+    },
+    "Multiple Regression": {
+      "p05": -204.67540409550384,
+      "p10": -185.9002905486069,
+      "p90": 26.890528231220973,
+      "p95": 49.728508552560406
+    },
+    "Decision Tree": {
+      "p05": -56.0,
+      "p10": -39.0,
+      "p90": 32.0,
+      "p95": 55.0
+    },
+    "SVR": {
+      "p05": -90.24434972930865,
+      "p10": -65.25228042657253,
+      "p90": 28.24854838760426,
+      "p95": 46.65002363617611
+    }
+  },
+  "model_descriptions": {
+    "Random Forest": "Ensemble of decision trees; usually the most accurate option here.",
+    "Gradient Boosting": "Boosted trees with native missing-value support.",
+    "Polynomial Regression": "Linear regression over degree-2 polynomial features.",
+    "Multiple Regression": "Linear regression baseline.",
+    "Decision Tree": "Single decision tree; interpretable but less accurate.",
+    "SVR": "Support Vector Regression with target scaling."
+  }
+}

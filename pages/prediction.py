@@ -1,635 +1,412 @@
-
-import pickle
-from pathlib import Path
-
-import numpy as np
+import pandas as pd
 import streamlit as st
 
-
-# =========================================================
-# 1. HEADER
-# =========================================================
-
-st.title("Know the air. Breathe with awareness.")
-
-st.caption("Machine Learning · AQI Estimation")
-
-st.write(
-    "Estimate air quality from pollutant measurements using "
-    "machine learning. Understand the predicted AQI category "
-    "and explore general pollution-related guidance."
+from aqi_app.constants import (
+    AQI_BANDS,
+    AQI_MAX_DISPLAY,
+    MAIN_POLLUTANTS,
+    OPTIONAL_POLLUTANTS,
+    POLLUTANT_ORDER,
+    aqi_category,
+    aqi_health_message,
+    aqi_progress,
+    pollutant_label,
 )
+from aqi_app.models import (
+    ModelError,
+    best_model_name,
+    clip_prediction,
+    dataset_aqi_percentile,
+    input_ranges,
+    load_bundle,
+    metrics_frame,
+    model_names,
+    predict,
+    prediction_interval,
+    target_stats,
+    temporal_metrics_frame,
+    temporal_split_info,
+    trained_at,
+)
+from aqi_app.models import (
+    cities as bundle_cities,
+)
+
+
+@st.cache_resource(show_spinner=False)
+def cached_bundle():
+    return load_bundle()
+
+
+try:
+    bundle = cached_bundle()
+except ModelError as exc:
+    st.error("Unable to load the prediction models.")
+    st.code(str(exc))
+    st.info("Run `python scripts/train_models.py` to rebuild the model bundle.")
+    st.stop()
+
+cities = bundle_cities(bundle)
+if not cities:
+    st.error("The model bundle does not contain any city categories.")
+    st.stop()
+
+ranges = input_ranges(bundle)
+models = model_names(bundle)
+best_model = best_model_name(bundle)
+metrics = metrics_frame(bundle)
+temporal_metrics = temporal_metrics_frame(bundle)
+temporal_split = temporal_split_info(bundle)
+temporal_cutoff = temporal_split.get("cutoff", "the holdout date")
+
+# ---------------------------------------------------------------------------
+# Header
+# ---------------------------------------------------------------------------
+st.title("Know the air. Breathe with awareness.")
+st.caption("Machine learning · AQI estimation · transparent test metrics")
+st.write(
+    """
+    Estimate air quality from pollutant measurements using machine learning.
+    Every pollutant is optional: leave a field blank if it was not measured
+    and the model will use the training median for that value.
+    """
+)
+st.caption(
+    "AQI is calculated from the same pollutants used as model inputs, so this "
+    "page is an approximation of the CPCB calculation, not a future forecast. "
+    "Use the Live AQI page for current conditions and forecasts."
+)
+st.divider()
+
+# ---------------------------------------------------------------------------
+# Prefill from the live page
+# ---------------------------------------------------------------------------
+prefill = st.session_state.pop("prediction_prefill", None)
+if prefill:
+    if prefill.get("city") in cities:
+        st.session_state["predicted_city"] = prefill["city"]
+    # Clear every field first so values from an earlier session or a previous
+    # prefill cannot leak into this one.
+    for pollutant in POLLUTANT_ORDER:
+        st.session_state[f"pollutant_{pollutant}"] = None
+    for name, value in (prefill.get("values") or {}).items():
+        if name in POLLUTANT_ORDER and value is not None:
+            st.session_state[f"pollutant_{name}"] = float(value)
+    st.info("Live values were copied from the Live AQI page. Review them before predicting.")
+
+if "predicted_city" not in st.session_state:
+    st.session_state["predicted_city"] = "Delhi" if "Delhi" in cities else cities[0]
+
+for pollutant in POLLUTANT_ORDER:
+    st.session_state.setdefault(f"pollutant_{pollutant}", None)
+
+# ---------------------------------------------------------------------------
+# Model selection
+# ---------------------------------------------------------------------------
+st.header("Prediction workspace")
+st.write("Choose a city, select a model, and enter any pollutant measurements you have.")
+
+model_col, info_col = st.columns([1.4, 1], gap="large")
+
+with model_col:
+    selected_model = st.selectbox(
+        "Machine-learning model",
+        models,
+        index=models.index(best_model),
+        key="selected_model",
+    )
+    st.caption(bundle["models"][selected_model]["description"])
+
+with info_col:
+    temporal_row = temporal_metrics[temporal_metrics["Model"] == selected_model].iloc[0]
+    a, b, c = st.columns(3)
+    with a:
+        st.metric("Time-based R²", f"{temporal_row['R²']:.3f}")
+    with b:
+        st.metric("MAE", f"{temporal_row['MAE']:.1f}")
+    with c:
+        st.metric("RMSE", f"{temporal_row['RMSE']:.1f}")
+
+    selected_row = metrics[metrics["Model"] == selected_model].iloc[0]
+    st.caption(
+        f"Time-based holdout (trained before {temporal_cutoff}). "
+        f"Random split (optimistic): R² {selected_row['R²']:.3f} · "
+        f"MAE {selected_row['MAE']:.1f} · RMSE {selected_row['RMSE']:.1f}."
+    )
+
+if selected_model != best_model:
+    st.info(
+        f"**{best_model}** has the best time-based R² in this bundle. "
+        "The comparison table below shows every model on both evaluations."
+    )
+
+with st.expander("Compare all six models"):
+    temporal_tab, random_tab = st.tabs(
+        [f"Time-based split (before {temporal_cutoff})", "Random split (optimistic)"]
+    )
+    format_spec = {
+        "R²": "{:.4f}",
+        "MAE": "{:.2f}",
+        "RMSE": "{:.2f}",
+        "Fit time (s)": "{:.1f}",
+    }
+    with temporal_tab:
+        st.dataframe(
+            temporal_metrics.style.format(format_spec),
+            width="stretch",
+            hide_index=True,
+        )
+    with random_tab:
+        st.dataframe(
+            metrics.style.format(format_spec),
+            width="stretch",
+            hide_index=True,
+        )
+
+    stats = target_stats(bundle)
+    st.caption(
+        f"Time-based split: {temporal_split.get('training_rows', 0):,} training rows "
+        f"and {temporal_split.get('test_rows', 0):,} later rows "
+        f"({temporal_split.get('test_start', '?')} → "
+        f"{temporal_split.get('test_end', '?')}). "
+        f"Random split: {bundle['test_rows']:,} held-out rows, which can include "
+        "the same city and nearby dates as the training set. "
+        f"Training target range: {stats.get('min', 0):.0f}–"
+        f"{stats.get('max', 0):.0f} AQI. Bundle trained {trained_at(bundle)} "
+        f"with scikit-learn {bundle.get('sklearn_version', 'unknown')}."
+    )
 
 st.divider()
 
+# ---------------------------------------------------------------------------
+# Input form
+# ---------------------------------------------------------------------------
+st.header("Enter pollutant measurements")
 
-# =========================================================
-# 2. LOAD MODELS
-# =========================================================
-
-APP_DIR = Path(__file__).resolve().parent
-
-
-def find_models_dir():
-    possible_paths = [
-        APP_DIR / "Models",
-        APP_DIR.parent / "Models",
-    ]
-
-    for folder in possible_paths:
-        if folder.is_dir():
-            return folder
-
-    return APP_DIR / "Models"
-
-
-MODELS_DIR = find_models_dir()
-
-
-@st.cache_resource
-def load_pickle(path_string):
-    path = Path(path_string)
-
-    if not path.is_file():
-        raise FileNotFoundError(
-            f"Missing model file: {path}"
-        )
-
-    with path.open("rb") as file:
-        header = file.read(100)
-
-        if header.startswith(b"version https://git-lfs"):
-            raise RuntimeError(
-                f"{path.name} is a Git LFS pointer. "
-                "Download the actual model file."
+action_col, clear_col, _ = st.columns([1.2, 1, 2])
+with action_col:
+    if st.button("Fill with training medians", width="stretch"):
+        for pollutant in POLLUTANT_ORDER:
+            st.session_state[f"pollutant_{pollutant}"] = round(
+                float(ranges.get(pollutant, {}).get("median", 0.0)), 2
             )
-
-        file.seek(0)
-        return pickle.load(file)
-
-
-try:
-    mreg = load_pickle(
-        str(MODELS_DIR / "Multiple Regression.pkl")
-    )
-
-    preg = load_pickle(
-        str(MODELS_DIR / "pregression.pkl")
-    )
-
-    dec_tree = load_pickle(
-        str(MODELS_DIR / "Decision tree.pkl")
-    )
-
-    rt_reg = load_pickle(
-        str(MODELS_DIR / "RandomForest.pkl")
-    )
-
-    svr_reg = load_pickle(
-        str(MODELS_DIR / "svrression.pkl")
-    )
-
-    poly_reg = load_pickle(
-        str(MODELS_DIR / "ploy_reg.pkl")
-    )
-
-    ohe = load_pickle(
-        str(MODELS_DIR / "OneHotEncoder_Featureset.pkl")
-    )
-
-    sc_x = load_pickle(
-        str(MODELS_DIR / "Standard_Scaler_X_SVR.pkl")
-    )
-
-except Exception as exc:
-    st.error("Unable to load the prediction models.")
-    st.code(f"{type(exc).__name__}: {exc}")
-
-    st.info(
-        "Check the Models folder, filenames, and model files."
-    )
-
-    st.stop()
-
-
-# =========================================================
-# 3. POLLUTANT SETTINGS
-# =========================================================
-
-POLLUTANTS = {
-    "PM2.5": ("PM2.5", 67.45, 500.0, "µg/m³"),
-    "PM10": ("PM10", 118.13, 600.0, "µg/m³"),
-    "NO": ("NO", 17.57, 200.0, "µg/m³"),
-    "NO2": ("NO2", 28.56, 200.0, "µg/m³"),
-    "NOx": ("NOx", 32.31, 300.0, "ppb"),
-    "NH3": ("NH3", 23.48, 200.0, "µg/m³"),
-    "CO": ("CO", 2.25, 50.0, "mg/m³"),
-    "SO2": ("SO2", 14.53, 200.0, "µg/m³"),
-    "O3": ("O3", 34.49, 300.0, "µg/m³"),
-    "Benzene": ("Benzene", 3.28, 100.0, "µg/m³"),
-    "Toluene": ("Toluene", 8.70, 200.0, "µg/m³"),
-    "Xylene": ("Xylene", 3.07, 100.0, "µg/m³"),
-}
-
-MAIN_POLLUTANTS = ["PM2.5", "PM10"]
-
-OPTIONAL_POLLUTANTS = [
-    name
-    for name in POLLUTANTS
-    if name not in MAIN_POLLUTANTS
-]
-
-
-# =========================================================
-# 4. AQI CATEGORY AND HEALTH GUIDANCE
-# =========================================================
-
-def get_aqi_category(aqi):
-    if aqi <= 50:
-        return "Good"
-
-    elif aqi <= 100:
-        return "Satisfactory"
-
-    elif aqi <= 200:
-        return "Moderate"
-
-    elif aqi <= 300:
-        return "Poor"
-
-    elif aqi <= 400:
-        return "Very Poor"
-
-    return "Severe"
-
-
-def get_health_message(aqi):
-    if aqi <= 50:
-        return (
-            "Air quality is in the Good range. Pollution-related "
-            "risk is comparatively low for most people."
-        )
-
-    elif aqi <= 100:
-        return (
-            "Air quality is Satisfactory. Some sensitive individuals "
-            "may experience discomfort."
-        )
-
-    elif aqi <= 200:
-        return (
-            "Air quality is Moderate. Sensitive individuals should "
-            "consider reducing strenuous outdoor activity if symptoms "
-            "occur."
-        )
-
-    elif aqi <= 300:
-        return (
-            "Air quality is Poor. Consider reducing prolonged or "
-            "strenuous outdoor activity."
-        )
-
-    elif aqi <= 400:
-        return (
-            "Air quality is Very Poor. Reduce outdoor exposure and "
-            "follow local public-health advice."
-        )
-
-    return (
-        "Air quality is Severe. Minimize outdoor pollution exposure "
-        "and follow official public-health advisories."
-    )
-
-
-# =========================================================
-# 5. MODEL MAPPING AND PREDICTION
-# =========================================================
-
-MODEL_MAP = {
-    "Multiple Regression": mreg,
-    "Polynomial Regression": preg,
-    "Decision Tree": dec_tree,
-    "Random Forest": rt_reg,
-    "SVR": svr_reg,
-}
-
-MODEL_DESCRIPTIONS = {
-    "Multiple Regression": "Linear regression baseline.",
-    "Polynomial Regression": "Regression with polynomial features.",
-    "Decision Tree": "Predicts AQI using decision-based rules.",
-    "Random Forest": "Combines multiple decision trees to predict AQI.",
-    "SVR": "Uses Support Vector Regression to estimate AQI.",
-}
-
-
-def predict_aqi(city, values, model_name):
-
-    # Encode the selected city.
-    encoded_city = ohe.transform([[city]])
-
-    if hasattr(encoded_city, "toarray"):
-        encoded_city = encoded_city.toarray()
-
-    encoded_city = np.asarray(
-        encoded_city,
-        dtype=float,
-    )
-
-    # Keep pollutant order consistent with training.
-    pollutant_row = np.array(
-        [[values[name] for name in POLLUTANTS.keys()]],
-        dtype=float,
-    )
-
-    # City encoding followed by pollutant values.
-    features = np.hstack([
-        encoded_city,
-        pollutant_row,
-    ])
-
-    model = MODEL_MAP[model_name]
-
-    if model_name == "Polynomial Regression":
-        model_input = poly_reg.transform(features)
-
-    elif model_name == "SVR":
-        model_input = sc_x.transform(features)
-
-    else:
-        model_input = features
-
-    expected_features = getattr(
-        model,
-        "n_features_in_",
-        None,
-    )
-
-    if (
-        expected_features is not None
-        and model_input.shape[1] != expected_features
-    ):
-        raise ValueError(
-            f"{model_name} expects {expected_features} input "
-            f"features, but received {model_input.shape[1]}. "
-            "The saved model's training feature order or "
-            "preprocessing does not match this app."
-        )
-
-    prediction = np.asarray(
-        model.predict(model_input)
-    ).reshape(-1)
-
-    if prediction.size == 0:
-        raise ValueError(
-            "The model returned no prediction."
-        )
-
-    if not np.isfinite(prediction[0]):
-        raise ValueError(
-            "The model returned an invalid prediction."
-        )
-
-    return float(prediction[0])
-
-
-# =========================================================
-# 6. PREDICTION WORKSPACE
-# =========================================================
-
-st.header("Prediction workspace")
-
-st.write(
-    "Choose your city, select a machine-learning model, "
-    "and enter pollutant measurements."
-)
-
-
-# =========================================================
-# 7. CITY OPTIONS
-# =========================================================
-
-@st.cache_data
-def get_cities():
-    return sorted(
-        str(city)
-        for city in ohe.categories_[0]
-    )
-
-
-try:
-    cities = get_cities()
-
-except Exception as exc:
-    st.error(
-        f"Unable to read city categories: {exc}"
-    )
-    st.stop()
-
-
-if not cities:
-    st.error(
-        "No city categories were found in the encoder."
-    )
-    st.stop()
-
-
-# =========================================================
-# 8. MODEL SELECTION
-# =========================================================
-
-st.subheader("Prediction model")
-
-model_names = [
-    "Random Forest",
-    "Multiple Regression",
-    "Polynomial Regression",
-    "Decision Tree",
-    "SVR",
-]
-
-selected_model = st.selectbox(
-    "Choose machine-learning model",
-    model_names,
-    key="selected_prediction_model",
-)
+        st.rerun()
+
+with clear_col:
+    if st.button("Clear all fields", width="stretch"):
+        for pollutant in POLLUTANT_ORDER:
+            st.session_state[f"pollutant_{pollutant}"] = None
+        st.rerun()
 
 st.caption(
-    MODEL_DESCRIPTIONS[selected_model]
+    "Maximum values shown below are the observed maxima in the training data, "
+    "so extreme episodes are not artificially blocked."
 )
 
-
-# =========================================================
-# 9. INPUT FORM
-# =========================================================
-
-st.subheader("Enter pollutant measurements")
-
 with st.form("aqi_prediction_form"):
-
-    left, right = st.columns(
-        [1.15, 0.85],
-        gap="large",
-    )
-
-    values = {}
+    left, right = st.columns([1.15, 0.85], gap="large")
+    values: dict[str, float | None] = {}
 
     with left:
-
         st.markdown("#### Location")
-
-        selected_city = st.selectbox(
-            "Select city",
-            cities,
-            key="selected_city",
-        )
-
+        st.selectbox("Select city", cities, key="predicted_city")
         st.caption(
-            "Choose a city supported by the saved encoder."
+            "The model has learned city features for these 26 cities. For any "
+            "other location, use the Live AQI page, which maps to the nearest "
+            "supported city."
         )
 
         st.divider()
-
         st.markdown("#### Primary pollutants")
 
-        st.caption(
-            "Default values are illustrative, not live readings."
-        )
-
-        col1, col2 = st.columns(2)
-
+        primary_columns = st.columns(2)
         for index, name in enumerate(MAIN_POLLUTANTS):
-
-            label, default, max_value, unit = POLLUTANTS[name]
-
-            target_column = (
-                col1 if index == 0 else col2
-            )
-
-            with target_column:
-
+            observed = ranges.get(name, {})
+            max_value = max(float(observed.get("max", 1000.0)), 1.0)
+            with primary_columns[index]:
                 values[name] = st.number_input(
-                    f"{label} ({unit})",
+                    pollutant_label(name),
                     min_value=0.0,
                     max_value=max_value,
-                    value=float(default),
+                    value=None,
                     step=0.5,
-                    key=f"main_{name}",
+                    key=f"pollutant_{name}",
+                    placeholder=f"Not measured · max {max_value:g}",
                 )
 
     with right:
-
         st.markdown("#### Other pollutants")
-
-        with st.expander(
-            "Configure 10 more measurements"
-        ):
-
+        st.caption("Leave blank when a pollutant was not measured.")
+        with st.expander("Configure the other 10 measurements", expanded=False):
             for name in OPTIONAL_POLLUTANTS:
-
-                label, default, max_value, unit = POLLUTANTS[name]
-
+                observed = ranges.get(name, {})
+                max_value = max(float(observed.get("max", 1000.0)), 1.0)
                 values[name] = st.number_input(
-                    f"{label} ({unit})",
+                    pollutant_label(name),
                     min_value=0.0,
                     max_value=max_value,
-                    value=float(default),
+                    value=None,
                     step=0.1,
-                    key=f"optional_{name}",
+                    key=f"pollutant_{name}",
+                    placeholder=f"Not measured · max {max_value:g}",
                 )
-
-        st.caption(
-            "Unchanged values use defaults, not live measurements."
-        )
 
     submitted = st.form_submit_button(
-        "Predict Air Quality",
-        use_container_width=True,
+        "Estimate AQI",
+        type="primary",
+        width="stretch",
     )
 
-
-# =========================================================
-# 10. RUN PREDICTION
-# =========================================================
-
-if "aqi_result" not in st.session_state:
-    st.session_state.aqi_result = None
-
-
+# ---------------------------------------------------------------------------
+# Run prediction
+# ---------------------------------------------------------------------------
 if submitted:
-
-    try:
-
-        with st.spinner(
-            f"Predicting with {selected_model}..."
-        ):
-
-            prediction = predict_aqi(
-                selected_city,
-                values,
-                selected_model,
-            )
-
-        st.session_state.aqi_result = {
-            "aqi": prediction,
-            "city": selected_city,
-            "model": selected_model,
-        }
-
-    except Exception as exc:
-
-        st.session_state.aqi_result = None
-
-        st.error(
-            f"Prediction failed using {selected_model}."
-        )
-
-        st.code(
-            f"{type(exc).__name__}: {exc}"
-        )
-
-
-# =========================================================
-# 11. PREDICTION RESULTS
-# =========================================================
+    provided = {name: value for name, value in values.items() if value is not None}
+    if not provided:
+        st.error("Enter at least one pollutant measurement before estimating AQI.")
+        st.session_state.pop("prediction_result", None)
+    else:
+        try:
+            with st.spinner(f"Estimating with {selected_model}..."):
+                raw = predict(
+                    bundle,
+                    selected_model,
+                    st.session_state["predicted_city"],
+                    values,
+                )
+            clipped, was_clipped = clip_prediction(raw, upper=AQI_MAX_DISPLAY)
+            st.session_state["prediction_result"] = {
+                "aqi": clipped,
+                "raw": raw,
+                "clipped": was_clipped,
+                "city": st.session_state["predicted_city"],
+                "model": selected_model,
+                "provided": provided,
+                "missing": [p for p in POLLUTANT_ORDER if p not in provided],
+            }
+        except ModelError as exc:
+            st.session_state.pop("prediction_result", None)
+            st.error(f"Prediction failed using {selected_model}.")
+            st.code(str(exc))
 
 st.divider()
 
-st.header("Prediction results")
-
-st.write(
-    "Your model estimate and its indicative AQI category."
-)
-
-result = st.session_state.aqi_result
-
+# ---------------------------------------------------------------------------
+# Results
+# ---------------------------------------------------------------------------
+st.header("Prediction result")
+result = st.session_state.get("prediction_result")
 
 if result is None:
-
     st.info(
-        "Enter your measurements and click "
-        "**Predict Air Quality** to see your result."
+        "Enter your measurements and click **Estimate AQI** to see a result. "
+        "Blank pollutants are imputed from training medians."
+    )
+else:
+    aqi = float(result["aqi"])
+    category = aqi_category(aqi)
+    percentile = dataset_aqi_percentile(bundle, aqi)
+
+    result_col, guidance_col = st.columns([1, 1], gap="large")
+
+    with result_col:
+        st.subheader("Estimated air quality")
+        st.metric("Estimated CPCB AQI", f"{aqi:.1f}")
+        st.progress(
+            aqi_progress(aqi),
+            text=f"{category} · {aqi:.1f} on a 0–500 display scale",
+        )
+
+        if category in {"Good", "Satisfactory"}:
+            st.success(f"AQI category: {category}")
+        elif category == "Moderate":
+            st.warning(f"AQI category: {category}")
+        else:
+            st.error(f"AQI category: {category}")
+
+        interval = prediction_interval(bundle, result["model"], aqi, level=0.8)
+        if interval is not None:
+            low, high = interval
+            st.caption(
+                f"Approx. 80% prediction interval: **{low:.0f}–{high:.0f} AQI**, "
+                "derived from time-based test residuals. This covers model error, "
+                "not measurement uncertainty."
+            )
+
+        st.caption(f"City: {result['city']} · Model: {result['model']}")
+        if percentile == percentile:  # not NaN
+            st.caption(
+                f"This estimate is higher than about {percentile:.0f}% of the "
+                "historical AQI values in the training data."
+            )
+
+    with guidance_col:
+        st.subheader("Health guidance")
+        st.write(aqi_health_message(aqi))
+        st.caption(
+            "General educational guidance only. Follow official local "
+            "air-quality and public-health advisories."
+        )
+
+    if result["clipped"]:
+        st.warning(
+            f"The raw model output was {result['raw']:.1f}, outside the CPCB "
+            f"0–{AQI_MAX_DISPLAY} AQI scale, so the displayed estimate is "
+            f"clamped to {aqi:.1f}."
+        )
+
+    if result["missing"]:
+        st.info(
+            f"{len(result['missing'])} of {len(POLLUTANT_ORDER)} pollutant inputs "
+            "were left blank and imputed with training medians: "
+            + ", ".join(result["missing"])
+            + "."
+        )
+
+    with st.expander("Inputs used for this prediction"):
+        rows = [
+            {
+                "Pollutant": pollutant_label(name),
+                "Value": (
+                    f"{result['provided'][name]:,.2f}"
+                    if name in result["provided"]
+                    else "Not provided (median imputed)"
+                ),
+            }
+            for name in POLLUTANT_ORDER
+        ]
+        st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+
+    st.divider()
+    st.subheader("AQI reference scale")
+    scale = pd.DataFrame(
+        [
+            {
+                "Range": (
+                    f"{band['min']}–{band['max']}"
+                    if band["max"] != float("inf")
+                    else f"{band['min']}+"
+                ),
+                "Category": band["label"],
+                "This estimate": "←" if band["label"] == category else "",
+            }
+            for band in AQI_BANDS
+        ]
+    )
+    st.dataframe(scale, width="stretch", hide_index=True)
+    st.caption(
+        "The AQI scale here is the Indian CPCB scale used by the historical "
+        "dataset. The model reproduces that calculation from pollutant inputs; "
+        "it is not an official monitoring-station reading."
     )
 
-else:
-
-    aqi = result["aqi"]
-
-    if aqi < 0:
-
-        st.error(
-            f"Predicted AQI: {aqi:.2f}"
-        )
-
-        st.warning(
-            "A negative estimate is not a valid AQI reading. "
-            "Check the training target, input features, and "
-            "model preprocessing."
-        )
-
-    else:
-
-        category = get_aqi_category(aqi)
-
-        result_col, details_col = st.columns(
-            [1, 1],
-            gap="large",
-        )
-
-        with result_col:
-
-            st.subheader("Predicted air quality")
-
-            st.metric(
-                label="Predicted AQI",
-                value=f"{aqi:.2f}",
-            )
-
-            if category == "Good":
-                st.success(f"AQI Category: {category}")
-
-            elif category == "Satisfactory":
-                st.success(f"AQI Category: {category}")
-
-            elif category == "Moderate":
-                st.warning(f"AQI Category: {category}")
-
-            else:
-                st.error(f"AQI Category: {category}")
-
-            st.caption(
-                f"City: {result['city']}"
-            )
-
-            st.caption(
-                f"Model: {result['model']}"
-            )
-
-        with details_col:
-
-            st.subheader("Health guidance")
-
-            st.write(
-                get_health_message(aqi)
-            )
-
-            st.caption(
-                "General educational guidance only. Follow official "
-                "local air-quality and public-health advisories."
-            )
-
-        # ---------------------------------------------
-        # AQI REFERENCE SCALE
-        # ---------------------------------------------
-
-        st.divider()
-
-        st.subheader("AQI reference scale")
-
-        bands = [
-            ("0–50", "Good"),
-            ("51–100", "Satisfactory"),
-            ("101–200", "Moderate"),
-            ("201–300", "Poor"),
-            ("301–400", "Very Poor"),
-            ("401+", "Severe"),
-        ]
-
-        scale_columns = st.columns(6)
-
-        for column, (limits, label) in zip(
-            scale_columns,
-            bands,
-        ):
-
-            with column:
-
-                st.metric(
-                    label=f"{label} ({limits})",
-                    value=(
-                        "Current"
-                        if label == category
-                        else "—"
-                    ),
-                )
-
-        st.caption(
-            "Make sure the model predicts AQI on the same scale "
-            "used by this reference. This is a model estimate, "
-            "not an official monitoring-station reading."
-        )
-
-
-# =========================================================
-# 12. FOOTER
-# =========================================================
-
+# ---------------------------------------------------------------------------
+# Footer
+# ---------------------------------------------------------------------------
 st.divider()
-
 st.subheader("AirWatch India")
-
 st.caption(
     "Machine-learning-based AQI estimation for educational use. "
-    "This app does not provide live monitoring or official AQI "
-    "readings. Results depend on the training data, model quality, "
-    "feature order, preprocessing, and supplied measurements."
+    "This app does not provide official AQI readings. Results depend on the "
+    "training data, model quality, and the measurements you supply."
 )

@@ -1,7 +1,8 @@
-
 # Python cache
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.ruff_cache/
 
 # Local environments
 .venv/
@@ -11,5 +12,16 @@ venv/
 .env
 .streamlit/secrets.toml
 
+# Legacy model pickles (use Models/aqi_models.joblib)
+Models/*.pkl
+
+# Coverage
+.coverage
+htmlcov/
+
 # Operating system files
 .DS_Store
+Thumbs.db
+
+# Logs
+*.log

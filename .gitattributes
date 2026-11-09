@@ -1,1 +1,5 @@
-*.pkl filter=lfs diff=lfs merge=lfs -text
+* text=auto
+
+*.png binary
+*.jpeg binary
+*.joblib binary

@@ -1,41 +1,97 @@
-
-import streamlit as st
 from pathlib import Path
 
-# --------------------------------------------------
-# PAGE CONFIGURATION
-# --------------------------------------------------
-st.set_page_config(
-    page_title="AirWatch India | Awareness",
-    page_icon="🌫️",
-    layout="wide",
-)
+import streamlit as st
+from streamlit.errors import StreamlitPageNotFoundError
 
-# --------------------------------------------------
-# HERO
-# --------------------------------------------------
+from aqi_app.data import DataError, dataset_summary, load_dataset
+
+
+def page_link(path: str, label: str, icon: str) -> None:
+    """Render a page link, or plain text when the page is rendered in isolation."""
+    try:
+        st.page_link(path, label=label, icon=icon)
+    except StreamlitPageNotFoundError:
+        st.caption(f"{icon} {label}")
+
 st.title("🌫️ AirWatch India")
 st.subheader("Understand the air. Protect your health.")
 
 st.write(
     """
-    Explore air pollution across Indian cities, understand the health risks,
-    and learn how air quality affects everyday life. Make more informed
-    decisions about the air you breathe.
+    Explore historical air pollution across Indian cities, check live
+    conditions and a short forecast, and estimate AQI from pollutant
+    measurements with transparent machine-learning models.
     """
 )
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+hero_left, hero_right = st.columns([1.3, 1], gap="large")
+
+with hero_left:
+    st.markdown("#### Three ways to use AirWatch")
+    st.markdown(
+        """
+        - **Dashboard** — explore 2015–2020 trends by city, year, category,
+          and pollutant.
+        - **Live AQI** — fetch current conditions and a 5-day forecast for
+          any city using the Open-Meteo API.
+        - **Prediction** — estimate AQI from pollutant measurements and
+          compare six models with published test metrics.
+        """
+    )
+    page_link("pages/dashboard.py", label="Open the historical dashboard", icon="📊")
+    page_link("pages/live.py", label="Check live air quality", icon="📡")
+    page_link("pages/prediction.py", label="Estimate AQI with ML", icon="🤖")
+
+with hero_right:
+    hero_image = PROJECT_ROOT / "air.jpeg"
+    if hero_image.is_file():
+        st.image(str(hero_image), width="stretch")
+
 st.divider()
 
-# --------------------------------------------------
-# INDIA AQI IMAGE
-# --------------------------------------------------
+# ---------------------------------------------------------------------------
+# Data snapshot
+# ---------------------------------------------------------------------------
+st.header("Data at a glance")
+
+
+@st.cache_data(show_spinner=False)
+def cached_summary():
+    return dataset_summary(load_dataset())
+
+
+try:
+    summary = cached_summary()
+except DataError as exc:
+    st.error(f"Historical dataset unavailable: {exc}")
+else:
+    m1, m2, m3, m4 = st.columns(4)
+    with m1:
+        st.metric("Historical records", f"{summary['rows']:,}")
+    with m2:
+        st.metric("Cities covered", f"{summary['cities']}")
+    with m3:
+        st.metric("Date range", f"{summary['start']} → {summary['end']}")
+    with m4:
+        st.metric("Average AQI", f"{summary['average_aqi']:.1f}")
+    st.caption(
+        "Source: Kaggle Air Quality Data in India. The dataset ends in "
+        "July 2020; use the Live AQI page for current conditions."
+    )
+
+st.divider()
+
+# ---------------------------------------------------------------------------
+# India AQI image
+# ---------------------------------------------------------------------------
 st.header("Air Quality in India")
 st.write("A visual overview of air pollution across India.")
 
-image_path = Path(__file__).parent / "India-2023.png"
+image_path = PROJECT_ROOT / "India-2023.png"
 
-if image_path.exists():
+if image_path.is_file():
     st.image(
         str(image_path),
         caption="Air Quality Index across India — 2023",
@@ -43,15 +99,15 @@ if image_path.exists():
     )
 else:
     st.warning(
-        "Image not found. Place India-2023.png in the same "
-        "folder as this Streamlit page."
+        "Image not found. Place India-2023.png in the project root "
+        f"({PROJECT_ROOT})."
     )
 
 st.divider()
 
-# --------------------------------------------------
-# HEALTH IMPACT
-# --------------------------------------------------
+# ---------------------------------------------------------------------------
+# Health impact
+# ---------------------------------------------------------------------------
 st.header("Health & Well-being")
 st.write("How exposure to air pollution can affect your body.")
 
@@ -83,9 +139,9 @@ with col2:
 
 st.divider()
 
-# --------------------------------------------------
-# LIFE EXPECTANCY
-# --------------------------------------------------
+# ---------------------------------------------------------------------------
+# Life expectancy
+# ---------------------------------------------------------------------------
 st.header("Air Pollution & Life Expectancy")
 st.write("Long-term exposure can affect health over many years.")
 
@@ -124,9 +180,9 @@ with col5:
 
 st.divider()
 
-# --------------------------------------------------
-# PRACTICAL RECOMMENDATIONS
-# --------------------------------------------------
+# ---------------------------------------------------------------------------
+# Practical recommendations
+# ---------------------------------------------------------------------------
 st.header("What Can You Do?")
 st.write("Simple precautions to reduce your exposure on polluted days.")
 
@@ -135,7 +191,8 @@ with st.container(border=True):
     st.write(
         """
         Check your city's current AQI before planning outdoor activities.
-        This page displays a 2023 image, not real-time monitoring data.
+        The Live AQI page shows current conditions and a 5-day forecast;
+        the dashboard shows the historical record.
         """
     )
 
@@ -161,9 +218,9 @@ with st.container(border=True):
 
 st.divider()
 
-# --------------------------------------------------
-# MISSION
-# --------------------------------------------------
+# ---------------------------------------------------------------------------
+# Mission
+# ---------------------------------------------------------------------------
 st.header("Our Mission")
 st.write("Why AirWatch India exists.")
 
@@ -183,16 +240,14 @@ with st.container(border=True):
 
 st.divider()
 
-# --------------------------------------------------
-# FOOTER
-# --------------------------------------------------
 st.subheader("🌫️ AirWatch India")
 
 st.caption(
     """
-    An air quality awareness and data visualization project.
+    An air quality awareness, data visualization, and machine-learning project.
 
-    Educational information only. Health effects vary by exposure
-    and individual circumstances.
+    Educational information only. Health effects vary by exposure and
+    individual circumstances. Model estimates are not official monitoring
+    readings.
     """
 )

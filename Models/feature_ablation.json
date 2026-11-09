@@ -1,0 +1,324 @@
+{
+  "generated_at": "2026-11-08T18:03:17+00:00",
+  "temporal_cutoff": "2019-07-01",
+  "random_state": 42,
+  "feature_sets": [
+    {
+      "feature_set": "full_12",
+      "features": [
+        "PM2.5",
+        "PM10",
+        "NO",
+        "NO2",
+        "NOx",
+        "NH3",
+        "CO",
+        "SO2",
+        "O3",
+        "Benzene",
+        "Toluene",
+        "Xylene"
+      ],
+      "random": {
+        "r2": 0.9308471931497901,
+        "mae": 18.20931983989596,
+        "rmse": 29.01362350342002,
+        "medae": 11.094756205055504,
+        "fit_seconds": 20.704830899999934
+      },
+      "temporal": {
+        "r2": 0.9118046581011345,
+        "mae": 17.207134011651057,
+        "rmse": 27.257577718368605,
+        "medae": 11.461241910538405,
+        "fit_seconds": 10.073166300000139
+      }
+    },
+    {
+      "feature_set": "cpcb_7",
+      "features": [
+        "PM2.5",
+        "PM10",
+        "NO2",
+        "SO2",
+        "CO",
+        "O3",
+        "NH3"
+      ],
+      "random": {
+        "r2": 0.9147945200118588,
+        "mae": 19.686884444984045,
+        "rmse": 32.20555802339124,
+        "medae": 11.730029485860875,
+        "fit_seconds": 7.186788799999931
+      },
+      "temporal": {
+        "r2": 0.8813094042547687,
+        "mae": 18.597346981077276,
+        "rmse": 31.6207808160671,
+        "medae": 11.468069775422265,
+        "fit_seconds": 10.228817900000195
+      }
+    },
+    {
+      "feature_set": "cpcb_plus_no",
+      "features": [
+        "PM2.5",
+        "PM10",
+        "NO",
+        "NO2",
+        "SO2",
+        "CO",
+        "O3",
+        "NH3"
+      ],
+      "random": {
+        "r2": 0.9298743792210451,
+        "mae": 18.278292317447526,
+        "rmse": 29.216986797570257,
+        "medae": 11.14905672301036,
+        "fit_seconds": 7.966728900000135
+      },
+      "temporal": {
+        "r2": 0.9139749922006766,
+        "mae": 17.25945419741033,
+        "rmse": 26.920107839494797,
+        "medae": 11.396064291383219,
+        "fit_seconds": 9.762923
+      }
+    },
+    {
+      "feature_set": "no_high_missing",
+      "features": [
+        "PM2.5",
+        "PM10",
+        "NO",
+        "NO2",
+        "NH3",
+        "CO",
+        "SO2",
+        "O3",
+        "Benzene"
+      ],
+      "random": {
+        "r2": 0.9295821012201935,
+        "mae": 18.460086727119364,
+        "rmse": 29.277810523061138,
+        "medae": 11.472874193777145,
+        "fit_seconds": 6.726330299999972
+      },
+      "temporal": {
+        "r2": 0.9085408908906509,
+        "mae": 17.48862346303614,
+        "rmse": 27.75734467725539,
+        "medae": 11.505632350190687,
+        "fit_seconds": 6.220848299999943
+      }
+    }
+  ],
+  "best_feature_set_by_temporal_r2": "cpcb_plus_no",
+  "preprocessing_experiment": [
+    {
+      "model": "Random Forest",
+      "variant": "global_median",
+      "imputation": "global",
+      "add_indicator": false,
+      "temporal": {
+        "r2": 0.8386128782225943,
+        "mae": 19.819432452581392,
+        "rmse": 36.87218491599836,
+        "medae": 11.408896825396823,
+        "fit_seconds": 32.71504119999986
+      }
+    },
+    {
+      "model": "Random Forest",
+      "variant": "global_median_indicators",
+      "imputation": "global",
+      "add_indicator": true,
+      "temporal": {
+        "r2": 0.8989264207024973,
+        "mae": 17.2925180354638,
+        "rmse": 29.17986361817133,
+        "medae": 10.672462301587316,
+        "fit_seconds": 40.358359600000085
+      }
+    },
+    {
+      "model": "Random Forest",
+      "variant": "city_median",
+      "imputation": "city",
+      "add_indicator": false,
+      "temporal": {
+        "r2": 0.7973703780829356,
+        "mae": 20.670837037328663,
+        "rmse": 41.31577484386362,
+        "medae": 11.370091269841325,
+        "fit_seconds": 42.29361909999989
+      }
+    },
+    {
+      "model": "SVR",
+      "variant": "global_median",
+      "imputation": "global",
+      "add_indicator": false,
+      "temporal": {
+        "r2": 0.3577371138274831,
+        "mae": 50.26758496206834,
+        "rmse": 73.55646477159108,
+        "medae": 33.484312773699955,
+        "fit_seconds": 21.19452720000004
+      }
+    },
+    {
+      "model": "SVR",
+      "variant": "global_median_indicators",
+      "imputation": "global",
+      "add_indicator": true,
+      "temporal": {
+        "r2": 0.7015275199703845,
+        "mae": 36.363856079736706,
+        "rmse": 50.14372373412802,
+        "medae": 28.128656208152478,
+        "fit_seconds": 16.35891659999993
+      }
+    },
+    {
+      "model": "SVR",
+      "variant": "city_median",
+      "imputation": "city",
+      "add_indicator": false,
+      "temporal": {
+        "r2": 0.36941421921422,
+        "mae": 51.13068644875314,
+        "rmse": 72.88472537486622,
+        "medae": 36.54397310324397,
+        "fit_seconds": 21.06311770000002
+      }
+    },
+    {
+      "model": "Polynomial Regression",
+      "variant": "global_median",
+      "imputation": "global",
+      "add_indicator": false,
+      "temporal": {
+        "r2": -1.399872919091223,
+        "mae": 61.716346639259775,
+        "rmse": 142.18656336457494,
+        "medae": 21.408919387186415,
+        "fit_seconds": 6.957843099999991
+      }
+    },
+    {
+      "model": "Polynomial Regression",
+      "variant": "global_median_indicators",
+      "imputation": "global",
+      "add_indicator": true,
+      "temporal": {
+        "r2": -1.0119001516637098,
+        "mae": 55.49778748983846,
+        "rmse": 130.18700819002743,
+        "medae": 21.57208643675628,
+        "fit_seconds": 12.07522599999993
+      }
+    },
+    {
+      "model": "Polynomial Regression",
+      "variant": "city_median",
+      "imputation": "city",
+      "add_indicator": false,
+      "temporal": {
+        "r2": -2.0875756377524346,
+        "mae": 64.02547172798295,
+        "rmse": 161.27729761231373,
+        "medae": 22.226434726704525,
+        "fit_seconds": 5.096471999999949
+      }
+    },
+    {
+      "model": "Multiple Regression",
+      "variant": "global_median",
+      "imputation": "global",
+      "add_indicator": false,
+      "temporal": {
+        "r2": 0.13392926179967102,
+        "mae": 52.15699097129934,
+        "rmse": 85.41637131902756,
+        "medae": 20.968688484297758,
+        "fit_seconds": 0.11831819999997606
+      }
+    },
+    {
+      "model": "Multiple Regression",
+      "variant": "global_median_indicators",
+      "imputation": "global",
+      "add_indicator": true,
+      "temporal": {
+        "r2": 0.14712672062042076,
+        "mae": 52.40539442685678,
+        "rmse": 84.76307217921673,
+        "medae": 21.847773572203465,
+        "fit_seconds": 0.21034050000002935
+      }
+    },
+    {
+      "model": "Multiple Regression",
+      "variant": "city_median",
+      "imputation": "city",
+      "add_indicator": false,
+      "temporal": {
+        "r2": 0.1542579842601557,
+        "mae": 51.4420858987295,
+        "rmse": 84.4079568897535,
+        "medae": 20.353272551725013,
+        "fit_seconds": 0.19368439999993825
+      }
+    },
+    {
+      "model": "Decision Tree",
+      "variant": "global_median",
+      "imputation": "global",
+      "add_indicator": false,
+      "temporal": {
+        "r2": 0.6586961238150453,
+        "mae": 27.80200577728956,
+        "rmse": 53.621016816205184,
+        "medae": 15.0,
+        "fit_seconds": 1.5624668000000383
+      }
+    },
+    {
+      "model": "Decision Tree",
+      "variant": "global_median_indicators",
+      "imputation": "global",
+      "add_indicator": true,
+      "temporal": {
+        "r2": 0.7721420829753948,
+        "mae": 25.19779079702185,
+        "rmse": 43.81234475523659,
+        "medae": 15.0,
+        "fit_seconds": 0.8981644999998935
+      }
+    },
+    {
+      "model": "Decision Tree",
+      "variant": "city_median",
+      "imputation": "city",
+      "add_indicator": false,
+      "temporal": {
+        "r2": 0.6482353144130943,
+        "mae": 28.448065421701454,
+        "rmse": 54.436545038708935,
+        "medae": 15.0,
+        "fit_seconds": 1.216551999999865
+      }
+    }
+  ],
+  "preprocessing_winners": {
+    "Random Forest": "global_median_indicators",
+    "SVR": "global_median_indicators",
+    "Polynomial Regression": "global_median_indicators",
+    "Multiple Regression": "city_median",
+    "Decision Tree": "global_median_indicators"
+  }
+}

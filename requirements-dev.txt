@@ -1,0 +1,9 @@
+# Development and notebook dependencies
+-r requirements.txt
+
+pytest>=8.2,<9.0
+ruff>=0.6,<1.0
+
+# Used by Model.ipynb (the exploratory notebook)
+matplotlib>=3.9,<4.0
+seaborn>=0.13,<1.0

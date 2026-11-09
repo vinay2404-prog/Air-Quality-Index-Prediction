@@ -1,0 +1,21 @@
+{
+  "rows_before": 29531,
+  "rows_dropped_initially_empty": 1374,
+  "negative_values_set_missing": 0,
+  "aqi_capped_at_500": 543,
+  "aqi_bucket_recomputed": 0,
+  "ahmedabad_co_set_missing": 1400,
+  "co_zeros_set_missing": 2328,
+  "benzene_zeros_set_missing": 3802,
+  "toluene_zeros_set_missing": 2861,
+  "xylene_zeros_set_missing": 1747,
+  "nox_inconsistent_set_missing": 12660,
+  "pm10_set_missing_when_below_pm25": 256,
+  "rows_dropped_after_cleaning": 695,
+  "rows_dropped_all_empty": 2069,
+  "rows_after": 27462,
+  "source": "Data/city_day_raw.csv",
+  "output": "Data/city_day.csv",
+  "raw_sha256": "0d84b21c3e4878bbad8df362f2ab05f61ad959538dddf5918e714077ed3c1847",
+  "clean_sha256": "9f6e54dd3fc3ed89717db9557456a9d56db4abcc60ce98eb375f14b06e833efa"
+}
